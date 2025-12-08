@@ -346,6 +346,14 @@ type FileContent struct {
 	FileID   string `json:"file_id"`
 }
 
+func NewFileContent(mimeType string, fileID string) *FileContent {
+	return &FileContent{
+		BaseContent: NewBaseContent(ContentTypeFile),
+		MimeType:    mimeType,
+		FileID:      fileID,
+	}
+}
+
 // 数据消息
 type DataContent struct {
 	BaseContent
