@@ -1,107 +1,261 @@
 package acp
 
-import "sync"
+import (
+	"errors"
+	"fmt"
+	"sync"
+	"time"
 
-const (
-	NoneRunID     = "00000000-0000-4000-8000-000000000000"
-	NoneBlockID   = "00000000-0000-4000-8000-100000000000"
-	NoneContentID = "00000000-0000-4000-8000-200000000000"
+	"github.com/google/uuid"
 )
 
-type EventGenerator struct {
-	mutex    sync.Mutex
-	index    int
-	indexMap map[string]int
+var (
+	ErrRunEvent     = errors.New("run event structure error")
+	ErrBlockEvent   = errors.New("block event structure error")
+	ErrContentEvent = errors.New("content event structure error")
+)
 
-	sseWriter   *SSEWriter
-	parentRunID string
+type Creator struct {
+	*Message
+
+	writer       *SSEWriter
+	mux          sync.Mutex
+	contentMap   map[string]Content // content_id -> content
+	contentIDMap map[string]string  // content_id -> block_id
 }
 
-func NewEventGenerator(sseWriter *SSEWriter, parentRunID string) *EventGenerator {
-	return &EventGenerator{
-		mutex:    sync.Mutex{},
-		index:    0,
-		indexMap: make(map[string]int),
-
-		sseWriter:   sseWriter,
-		parentRunID: parentRunID,
+func NewCreator(writer *SSEWriter) *Creator {
+	return &Creator{
+		Message: &Message{
+			ID:        uuid.NewString(),
+			Role:      RoleAssistant,
+			Blocks:    make([]Block, 0),
+			CreatedAt: time.Now().UnixMicro(),
+			UpdatedAt: time.Now().UnixMicro(),
+		},
+		writer:       writer,
+		mux:          sync.Mutex{},
+		contentMap:   make(map[string]Content),
+		contentIDMap: make(map[string]string),
 	}
 }
 
-func (e *EventGenerator) SendRunStartedEvent() error {
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
-
-	if len(e.parentRunID) == 0 {
-		e.parentRunID = NoneRunID
+func (m *Creator) AddEvent(e Event) error {
+	if m.writer != nil {
+		if err := m.writer.Send(e); err != nil {
+			return err
+		}
 	}
 
-	return e.sseWriter.Send(NewRunStartedEvent(e.parentRunID))
+	m.UpdatedAt = time.Now().UnixMicro()
+	switch e.Type() {
+	case EventTypeRunStarted, EventTypeRunFinished, EventTypeRunError:
+		return m.processRunEvent(e)
+	case EventTypeBlockStart, EventTypeBlockEnd:
+		return m.processBlockEvent(e)
+	case EventTypeContentStart, EventTypeContentDelta, EventTypeContentEnd:
+		return m.processContentEvent(e)
+	default:
+		return fmt.Errorf("unsupport event: %s", e.Type())
+	}
 }
 
-func (e *EventGenerator) SendRunFinishedEvent(runID string) error {
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
+func (m *Creator) processRunEvent(e Event) error {
+	switch e.(type) {
+	case RunStartedEvent:
+		evt, ok := e.(RunStartedEvent)
+		if !ok {
+			return ErrRunEvent
+		}
 
-	return e.sseWriter.Send(NewRunFinishedEvent(runID))
+		m.ID = evt.RunID
+		return nil
+
+	case RunFinishedEvent:
+		return nil
+
+	case RunErrorEvent:
+		evt, ok := e.(RunErrorEvent)
+		if !ok {
+			return ErrRunEvent
+		}
+
+		m.Errors = evt.Error
+		return nil
+
+	default:
+		return ErrRunEvent
+	}
 }
 
-func (e *EventGenerator) SendRunInterruptEvent(runID string) error {
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
+func (m *Creator) processBlockEvent(e Event) error {
+	switch e.(type) {
+	case BlockStartEvent:
+		evt, ok := e.(BlockStartEvent)
+		if !ok {
+			return ErrBlockEvent
+		}
 
-	return e.sseWriter.Send(NewRunInterruptEvent(runID))
+		m.Blocks = append(m.Blocks, Block{
+			ID:            evt.BlockID,
+			Contents:      make([]Content, 0),
+			IsParallel:    evt.IsParallel,
+			IsSubagent:    evt.IsSubagent,
+			Metadata:      evt.Metadata,
+			ParentBlockID: evt.ParentBlockID,
+		})
+		return nil
+
+	case BlockEndEvent:
+		evt, ok := e.(BlockEndEvent)
+		if !ok {
+			return ErrBlockEvent
+		}
+
+		for i := len(m.Blocks) - 1; i >= 0; i-- {
+			if m.Blocks[i].ID == evt.BlockID {
+				m.Blocks[i].Usage = evt.Usage
+				break
+			}
+		}
+		return nil
+
+	default:
+		return ErrBlockEvent
+	}
 }
 
-func (e *EventGenerator) SendRunErrorEvent(runID string, message string) error {
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
+func (m *Creator) processContentEvent(e Event) error {
+	switch e.(type) {
+	case ContentStartEvent:
+		evt, ok := e.(ContentStartEvent)
+		if !ok {
+			return ErrContentEvent
+		}
 
-	return e.sseWriter.Send(NewRunErrorEvent(runID, message))
+		for i := len(m.Blocks) - 1; i >= 0; i-- {
+			if m.Blocks[i].ID == evt.RelatedBlockID {
+				m.mux.Lock()
+				m.contentMap[evt.ContentID] = nil
+				m.contentIDMap[evt.ContentID] = evt.RelatedBlockID
+				m.mux.Unlock()
+				break
+			}
+		}
+		return nil
+
+	case ContentDeltaEvent:
+		evt, ok := e.(ContentDeltaEvent)
+		if !ok {
+			return ErrContentEvent
+		}
+
+		return m.processContent(evt.ContentID, evt.Content)
+
+	case ContentEndEvent:
+		evt, ok := e.(ContentEndEvent)
+		if !ok {
+			return ErrContentEvent
+		}
+
+		m.mux.Lock()
+		content, ok1 := m.contentMap[evt.ContentID]
+		blockID, ok2 := m.contentIDMap[evt.ContentID]
+		if ok1 && ok2 {
+			for i := len(m.Blocks) - 1; i >= 0; i-- {
+				if m.Blocks[i].ID == blockID {
+					m.Blocks[i].Contents = append(m.Blocks[i].Contents, content)
+					break
+				}
+			}
+
+			delete(m.contentIDMap, evt.ContentID)
+			delete(m.contentMap, evt.ContentID)
+		}
+		m.mux.Unlock()
+		return nil
+
+	default:
+		return ErrContentEvent
+	}
 }
 
-func (e *EventGenerator) SendBlockStartEvent(parentBlockID string) error {
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
+func (m *Creator) processContent(id string, sc StreamContent) error {
+	m.mux.Lock()
+	defer m.mux.Unlock()
 
-	if len(parentBlockID) == 0 {
-		parentBlockID = NoneBlockID
+	content, ok := m.contentMap[id]
+	if !ok {
+		return nil
 	}
 
-	return e.sseWriter.Send(NewBlockStartEvent(parentBlockID))
-}
+	switch sc.Type() {
+	case ContentTypeText:
+		evt, ok := sc.(StreamTextContent)
+		if !ok {
+			return ErrContentEvent
+		}
 
-func (e *EventGenerator) SendBlockEndEvent(blockID string) error {
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
+		if content == nil {
+			content = NewTextContent(id, evt.Delta)
+		} else {
+			content.(*TextContent).Append(evt.Delta)
+		}
 
-	return e.sseWriter.Send(NewBlockEndEvent(blockID))
-}
+	case ContentTypeThinking:
+		evt, ok := sc.(StreamThinkingContent)
+		if !ok {
+			return ErrContentEvent
+		}
 
-func (e *EventGenerator) SendContentStartEvent(parentContentID string) error {
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
+		if content == nil {
+			content = NewThinkingContent(id, evt.Delta)
+		} else {
+			content.(*ThinkingContent).Append(evt.Delta)
+		}
 
-	if len(parentContentID) == 0 {
-		parentContentID = NoneContentID
+	case ContentTypeToolCall:
+		evt, ok := sc.(StreamToolCallContent)
+		if !ok {
+			return ErrContentEvent
+		}
+
+		if content == nil {
+			content = NewToolCallContent(evt.CallID, evt.ToolName)
+		}
+
+	case ContentTypeToolArgs:
+		evt, ok := sc.(StreamToolArgsContent)
+		if !ok || content == nil {
+			return ErrContentEvent
+		}
+		content.(*ToolCallContent).ToolArgs += evt.Delta
+
+	case ContentTypeToolResult:
+		evt, ok := sc.(StreamToolResultContent)
+		if !ok || content == nil {
+			return ErrContentEvent
+		}
+		content.(*ToolCallContent).ToolResult += evt.Delta
+
+	case ContentTypeCommandExecution:
+		evt, ok := sc.(StreamCommandContent)
+		if !ok {
+			return ErrContentEvent
+		}
+
+		if content == nil {
+			content = NewCommandContent(evt.CallID, evt.Command)
+		}
+
+	case ContentTypeCommandExecutionResult:
+		evt, ok := sc.(StreamCommandResultContent)
+		if !ok || content == nil {
+			return ErrContentEvent
+		}
+		content.(*CommandContent).Result += evt.Delta
 	}
 
-	evt := NewContentStartEvent(parentContentID, e.index)
-	e.index++
-	e.indexMap[evt.ContentID] = e.index
-	return e.sseWriter.Send(evt)
-}
-
-func (e *EventGenerator) NewContentDeltaEvent(contentID string, delta string) error {
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
-
-	return e.sseWriter.Send(NewContentDeltaEvent(e.indexMap[contentID], delta))
-}
-
-func (e *EventGenerator) SendContentEndEvent(contentID string) error {
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
-
-	return e.sseWriter.Send(NewContentEndEvent(contentID))
+	m.contentMap[id] = content
+	return nil
 }

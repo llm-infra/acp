@@ -2,8 +2,6 @@ package acp
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type EventType string
@@ -11,7 +9,6 @@ type EventType string
 const (
 	EventTypeRunStarted   EventType = "run_started"
 	EventTypeRunFinished  EventType = "run_finished"
-	EventTypeRunInterrupt EventType = "run_interrupt"
 	EventTypeRunError     EventType = "run_error"
 	EventTypeBlockStart   EventType = "block_start"
 	EventTypeBlockEnd     EventType = "block_end"
@@ -49,15 +46,13 @@ func NewBaseEvent(eventType EventType) BaseEvent {
 type RunStartedEvent struct {
 	BaseEvent
 
-	ParentRunID string `json:"parent_run_id"`
-	RunID       string `json:"run_id"`
+	RunID string `json:"run_id"`
 }
 
-func NewRunStartedEvent(parentRunID string) RunStartedEvent {
+func NewRunStartedEvent(runID string) RunStartedEvent {
 	return RunStartedEvent{
-		BaseEvent:   NewBaseEvent(EventTypeRunStarted),
-		ParentRunID: parentRunID,
-		RunID:       uuid.NewString(),
+		BaseEvent: NewBaseEvent(EventTypeRunStarted),
+		RunID:     runID,
 	}
 }
 
@@ -70,19 +65,6 @@ type RunFinishedEvent struct {
 func NewRunFinishedEvent(runID string) RunFinishedEvent {
 	return RunFinishedEvent{
 		BaseEvent: NewBaseEvent(EventTypeRunFinished),
-		RunID:     runID,
-	}
-}
-
-type RunInterruptEvent struct {
-	BaseEvent
-
-	RunID string `json:"run_id"`
-}
-
-func NewRunInterruptEvent(runID string) RunInterruptEvent {
-	return RunInterruptEvent{
-		BaseEvent: NewBaseEvent(EventTypeRunInterrupt),
 		RunID:     runID,
 	}
 }
@@ -103,31 +85,64 @@ func NewRunErrorEvent(runID string, message string) RunErrorEvent {
 }
 
 // 区块事件
+type BlockOption func(*BlockStartEvent)
+
 type BlockStartEvent struct {
 	BaseEvent
 
-	ParentBlockID string `json:"parent_block_id"`
-	BlockID       string `json:"block_id"`
+	BlockID       string         `json:"block_id"`
+	IsParallel    bool           `json:"is_parallel,omitempty"`
+	IsSubagent    bool           `json:"is_subagent,omitempty"`
+	Metadata      map[string]any `json:"metadata,omitempty"`
+	ParentBlockID string         `json:"parent_block_id,omitempty"`
 }
 
-func NewBlockStartEvent(parentBlockID string) BlockStartEvent {
-	return BlockStartEvent{
-		BaseEvent:     NewBaseEvent(EventTypeBlockStart),
-		ParentBlockID: parentBlockID,
-		BlockID:       uuid.NewString(),
+func WithIsParallel() BlockOption {
+	return func(e *BlockStartEvent) { e.IsParallel = true }
+}
+
+func WithIsSubagent() BlockOption {
+	return func(e *BlockStartEvent) { e.IsSubagent = true }
+}
+
+func WithMetadata(metadata map[string]any) BlockOption {
+	return func(e *BlockStartEvent) { e.Metadata = metadata }
+}
+
+func WithParentBlockID(parentBlockID string) BlockOption {
+	return func(e *BlockStartEvent) { e.ParentBlockID = parentBlockID }
+}
+
+func NewBlockStartEvent(blockID string, opts ...BlockOption) BlockStartEvent {
+	evt := BlockStartEvent{
+		BaseEvent: NewBaseEvent(EventTypeBlockStart),
+		BlockID:   blockID,
 	}
+
+	for _, o := range opts {
+		o(&evt)
+	}
+
+	return evt
 }
 
 type BlockEndEvent struct {
 	BaseEvent
 
 	BlockID string `json:"block_id"`
+	Usage   *Usage `json:"usage,omitempty"`
 }
 
-func NewBlockEndEvent(blockID string) BlockEndEvent {
+type Usage struct {
+	PromptTokens     int64 `json:"prompt_tokens"`
+	CompletionTokens int64 `json:"completion_tokens"`
+}
+
+func NewBlockEndEvent(blockID string, usage *Usage) BlockEndEvent {
 	return BlockEndEvent{
 		BaseEvent: NewBaseEvent(EventTypeBlockEnd),
 		BlockID:   blockID,
+		Usage:     usage,
 	}
 }
 
@@ -135,31 +150,15 @@ func NewBlockEndEvent(blockID string) BlockEndEvent {
 type ContentStartEvent struct {
 	BaseEvent
 
-	ParentContentID string `json:"parent_content_id"`
-	ContentID       string `json:"content_id"`
-	Index           int    `json:"index"`
+	ContentID      string `json:"content_id"`
+	RelatedBlockID string `json:"related_block_id,omitempty"`
 }
 
-func NewContentStartEvent(parentContentID string, index int) ContentStartEvent {
+func NewContentStartEvent(contentID, blockID string) ContentStartEvent {
 	return ContentStartEvent{
-		BaseEvent:       NewBaseEvent(EventTypeContentStart),
-		ParentContentID: parentContentID,
-		ContentID:       uuid.NewString(),
-		Index:           index,
-	}
-}
-
-type ContentDeltaEvent struct {
-	BaseEvent
-	Index int    `json:"index"`
-	Delta string `json:"delta"`
-}
-
-func NewContentDeltaEvent(index int, delta string) ContentDeltaEvent {
-	return ContentDeltaEvent{
-		BaseEvent: NewBaseEvent(EventTypeContentDelta),
-		Index:     index,
-		Delta:     delta,
+		BaseEvent:      NewBaseEvent(EventTypeContentStart),
+		ContentID:      contentID,
+		RelatedBlockID: blockID,
 	}
 }
 
@@ -173,5 +172,20 @@ func NewContentEndEvent(contentID string) ContentEndEvent {
 	return ContentEndEvent{
 		BaseEvent: NewBaseEvent(EventTypeContentEnd),
 		ContentID: contentID,
+	}
+}
+
+type ContentDeltaEvent struct {
+	BaseEvent
+
+	ContentID string        `json:"content_id"`
+	Content   StreamContent `json:"content"`
+}
+
+func NewContentDeltaEvent(contentID string, content StreamContent) ContentDeltaEvent {
+	return ContentDeltaEvent{
+		BaseEvent: NewBaseEvent(EventTypeContentDelta),
+		ContentID: contentID,
+		Content:   content,
 	}
 }
