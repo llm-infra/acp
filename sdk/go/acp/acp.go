@@ -18,6 +18,8 @@ var (
 type Creator struct {
 	*Message
 
+	hasStarted   bool
+	hasFinished  bool
 	writer       *SSEWriter
 	mux          sync.Mutex
 	contentMap   map[string]Content // content_id -> content
@@ -40,7 +42,33 @@ func NewCreator(writer *SSEWriter) *Creator {
 	}
 }
 
-func (m *Creator) AddEvent(e Event) error {
+func (m *Creator) AddEvent(e Event) (err error) {
+	switch e.Type() {
+	case EventTypeRunStarted, EventTypeRunFinished, EventTypeRunError:
+		if e.Type() == EventTypeRunStarted {
+			if m.hasStarted {
+				return nil
+			}
+			m.hasStarted = true
+		} else {
+			if m.hasFinished {
+				return errors.New("event stream already done")
+			}
+			m.hasFinished = true
+		}
+
+		err = m.processRunEvent(e)
+	case EventTypeBlockStart, EventTypeBlockEnd:
+		err = m.processBlockEvent(e)
+	case EventTypeContentStart, EventTypeContentDelta, EventTypeContentEnd:
+		err = m.processContentEvent(e)
+	default:
+		return fmt.Errorf("unsupport event: %s", e.Type())
+	}
+	if err != nil {
+		return err
+	}
+
 	if m.writer != nil {
 		if err := m.writer.Send(e); err != nil {
 			return err
@@ -48,16 +76,7 @@ func (m *Creator) AddEvent(e Event) error {
 	}
 
 	m.UpdatedAt = time.Now().UnixMicro()
-	switch e.Type() {
-	case EventTypeRunStarted, EventTypeRunFinished, EventTypeRunError:
-		return m.processRunEvent(e)
-	case EventTypeBlockStart, EventTypeBlockEnd:
-		return m.processBlockEvent(e)
-	case EventTypeContentStart, EventTypeContentDelta, EventTypeContentEnd:
-		return m.processContentEvent(e)
-	default:
-		return fmt.Errorf("unsupport event: %s", e.Type())
-	}
+	return nil
 }
 
 func (m *Creator) processRunEvent(e Event) error {
