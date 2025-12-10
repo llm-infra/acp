@@ -208,7 +208,7 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 		return nil
 	}
 
-	switch sc.Type() {
+	switch sc.SType() {
 	case ContentTypeText:
 		evt, ok := sc.(StreamTextContent)
 		if !ok {
@@ -240,7 +240,7 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 		}
 
 		if content == nil {
-			content = NewToolCallContent(evt.CallID, evt.ToolName)
+			content = NewToolCallContent(evt.ToolName)
 		}
 
 	case ContentTypeToolArgs:
@@ -257,6 +257,30 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 		}
 		content.(*ToolCallContent).ToolResult += evt.Delta
 
+	case ContentTypeMcpCall:
+		evt, ok := sc.(StreamMCPCallContent)
+		if !ok {
+			return ErrContentEvent
+		}
+
+		if content == nil {
+			content = NewMCPContent(evt.McpName, evt.ToolName)
+		}
+
+	case ContentTypeMcpArgs:
+		evt, ok := sc.(StreamMCPArgsContent)
+		if !ok || content == nil {
+			return ErrContentEvent
+		}
+		content.(*MCPContent).ToolArgs += evt.Delta
+
+	case ContentTypeMcpResult:
+		evt, ok := sc.(StreamMCPResultContent)
+		if !ok || content == nil {
+			return ErrContentEvent
+		}
+		content.(*MCPContent).ToolResult += evt.Delta
+
 	case ContentTypeCommandExecution:
 		evt, ok := sc.(StreamCommandContent)
 		if !ok {
@@ -264,7 +288,7 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 		}
 
 		if content == nil {
-			content = NewCommandContent(evt.CallID, evt.Command)
+			content = NewCommandContent(evt.Command)
 		}
 
 	case ContentTypeCommandExecutionResult:
@@ -273,6 +297,25 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 			return ErrContentEvent
 		}
 		content.(*CommandContent).Result += evt.Delta
+
+	case ContentTypeCodeExecution:
+		evt, ok := sc.(StreamCodeExecutionContent)
+		if !ok {
+			return ErrContentEvent
+		}
+
+		if content == nil {
+			content = NewCodeExecutionContent(evt.Lang, evt.Delta)
+		} else {
+			content.(*CodeExecutionContent).Code += evt.Delta
+		}
+
+	case ContentTypeCodeExecutionResult:
+		evt, ok := sc.(StreamCodeExecutionResultContent)
+		if !ok || content == nil {
+			return ErrContentEvent
+		}
+		content.(*CodeExecutionContent).Result += evt.Delta
 	}
 
 	m.contentMap[id] = content

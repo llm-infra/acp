@@ -54,17 +54,12 @@ func TestBase64(t *testing.T) {
       "type": "string"
     }
   ],
-  "edges": [
-    {
-      "src_node": "node0",
-      "dst_node": "node1"
-    }
-  ],
+  "edges": [],
   "description": "测试测试测试测试",
   "envs": [],
   "cot_version": "v2",
   "uid": "1832953843586764801",
-  "entry": "node0",
+  "entry": "node1",
   "nodes": [
     {
       "max_retries": 3,
@@ -74,49 +69,8 @@ func TestBase64(t *testing.T) {
           "type": "string",
           "strict": true,
           "value": {
-            "expr": "你好",
+            "expr": "Lazarus的ID是多少",
             "type": "literal"
-          }
-        }
-      ],
-      "iteration_values": [],
-      "description": "这是一个大模型_Vf4ck3",
-      "max_working": 30,
-      "mcps": [],
-      "type": "llm_mixup",
-      "tools": [],
-      "use_memory": false,
-      "timeout": 300,
-      "agents": [],
-      "log_memory": false,
-      "result_key": "result_key",
-      "output_parameters": [],
-      "max_reflections": 5,
-      "name": "大模型_Vf4ck3",
-      "iteration": false,
-      "on_error": 0,
-      "model": {
-        "top_p": 1,
-        "max_tokens": 1024,
-        "reasoning": 1,
-        "top_k": -1,
-        "temperature": 0.7,
-        "model": "HengNao-r1"
-      },
-      "id": "node0",
-      "no_action": false,
-      "no_repeat": false
-    },
-    {
-      "max_retries": 3,
-      "input_parameters": [
-        {
-          "name": "input",
-          "type": "string",
-          "strict": true,
-          "value": {
-            "expr": "$.kv_user.input",
-            "type": "reference"
           }
         }
       ],
