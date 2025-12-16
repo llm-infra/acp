@@ -176,13 +176,13 @@ func NewStreamArtifactContent(mimeType string, fileID string) StreamArtifactCont
 type StreamVariableContent struct {
 	StreamBaseContent
 
-	Variables map[string]any `json:"variables"`
+	Delta map[string]any `json:"delta"`
 }
 
-func NewStreamVariableContent(variables map[string]any) StreamVariableContent {
+func NewStreamVariableContent(delta map[string]any) StreamVariableContent {
 	return StreamVariableContent{
 		StreamBaseContent: NewStreamBaseContent(ContentTypeVariable),
-		Variables:         variables,
+		Delta:             delta,
 	}
 }
 
@@ -421,6 +421,7 @@ type DataContent struct {
 
 	MimeType string `json:"mime_type"`
 	Data     string `json:"data"` // base64
+	Origin   []byte `json:"-"`
 }
 
 func NewDataContent(mimeType string, data []byte) *DataContent {
@@ -428,6 +429,7 @@ func NewDataContent(mimeType string, data []byte) *DataContent {
 		BaseContent: NewBaseContent(ContentTypeData),
 		MimeType:    mimeType,
 		Data:        base64.StdEncoding.EncodeToString(data),
+		Origin:      data,
 	}
 }
 
@@ -452,6 +454,13 @@ type VariableContent struct {
 	BaseContent
 
 	Variables map[string]any `json:"variables"`
+}
+
+func NewVariableContent(variables map[string]any) *VariableContent {
+	return &VariableContent{
+		BaseContent: NewBaseContent(ContentTypeVariable),
+		Variables:   variables,
+	}
 }
 
 // 交互消息

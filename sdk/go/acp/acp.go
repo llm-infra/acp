@@ -1,6 +1,7 @@
 package acp
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"sync"
@@ -273,11 +274,17 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 			return ErrContentEvent
 		}
 
-		// TODO
+		// base64 decode
+		decoded, err := base64.StdEncoding.DecodeString(evt.Delta)
+		if err != nil {
+			return err
+		}
+
 		if content == nil {
-			content = NewDataContent(evt.MimeType, []byte(evt.Delta))
+			content = NewDataContent(evt.MimeType, decoded)
 		} else {
-			content.(*DataContent).Data += evt.Delta
+			content.(*DataContent).Origin = append(content.(*DataContent).Origin, decoded...)
+			content.(*DataContent).Data = base64.StdEncoding.EncodeToString(content.(*DataContent).Origin)
 		}
 
 	case ContentTypeArtifact:
@@ -288,6 +295,20 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 
 		if content == nil {
 			content = NewArtifactContent(evt.MimeType, evt.FileID)
+		}
+
+	case ContentTypeVariable:
+		evt, ok := sc.(StreamVariableContent)
+		if !ok {
+			return ErrContentEvent
+		}
+
+		if content == nil {
+			content = NewVariableContent(evt.Delta)
+		} else {
+			for k, v := range evt.Delta {
+				content.(*VariableContent).Variables[k] = v
+			}
 		}
 
 	case ContentTypeMcpCall:
