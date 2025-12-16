@@ -257,6 +257,39 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 		}
 		content.(*ToolCallContent).ToolResult += evt.Delta
 
+	case ContentTypeFile:
+		evt, ok := sc.(StreamFileContent)
+		if !ok {
+			return ErrContentEvent
+		}
+
+		if content == nil {
+			content = NewFileContent(evt.MimeType, evt.FileID)
+		}
+
+	case ContentTypeData:
+		evt, ok := sc.(StreamDataContent)
+		if !ok {
+			return ErrContentEvent
+		}
+
+		// TODO
+		if content == nil {
+			content = NewDataContent(evt.MimeType, []byte(evt.Delta))
+		} else {
+			content.(*DataContent).Data += evt.Delta
+		}
+
+	case ContentTypeArtifact:
+		evt, ok := sc.(StreamArtifactContent)
+		if !ok {
+			return ErrContentEvent
+		}
+
+		if content == nil {
+			content = NewArtifactContent(evt.MimeType, evt.FileID)
+		}
+
 	case ContentTypeMcpCall:
 		evt, ok := sc.(StreamMCPCallContent)
 		if !ok {

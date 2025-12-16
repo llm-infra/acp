@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"reflect"
 )
 
 // Content Type
@@ -146,14 +145,14 @@ type StreamDataContent struct {
 	StreamBaseContent
 
 	MimeType string `json:"mime_type"`
-	Data     string `json:"data"` // base64
+	Delta    string `json:"delta"` // base64
 }
 
 func NewStreamDataContent(mimeType string, data []byte) StreamDataContent {
 	return StreamDataContent{
 		StreamBaseContent: NewStreamBaseContent(ContentTypeData),
 		MimeType:          mimeType,
-		Data:              base64.StdEncoding.EncodeToString(data),
+		Delta:             base64.StdEncoding.EncodeToString(data),
 	}
 }
 
@@ -424,12 +423,28 @@ type DataContent struct {
 	Data     string `json:"data"` // base64
 }
 
+func NewDataContent(mimeType string, data []byte) *DataContent {
+	return &DataContent{
+		BaseContent: NewBaseContent(ContentTypeData),
+		MimeType:    mimeType,
+		Data:        base64.StdEncoding.EncodeToString(data),
+	}
+}
+
 // 制品消息
 type ArtifactContent struct {
 	BaseContent
 
 	MimeType string `json:"mime_type"`
 	FileID   string `json:"file_id"`
+}
+
+func NewArtifactContent(mimeType string, fileID string) *ArtifactContent {
+	return &ArtifactContent{
+		BaseContent: NewBaseContent(ContentTypeArtifact),
+		MimeType:    mimeType,
+		FileID:      fileID,
+	}
 }
 
 // 变量消息
@@ -580,17 +595,4 @@ func unmarshalContent(data []byte) (Content, error) {
 	default:
 		return nil, fmt.Errorf("unsupported content type: %s", base.Type())
 	}
-}
-
-func isNilAny(a any) bool {
-	if a == nil {
-		return true
-	}
-	v := reflect.ValueOf(a)
-	switch v.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Map,
-		reflect.Pointer, reflect.Interface, reflect.Slice:
-		return v.IsNil()
-	}
-	return false
 }
