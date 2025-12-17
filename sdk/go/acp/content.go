@@ -33,6 +33,11 @@ const (
 	ContentTypeTodoList               = "todo_list"
 )
 
+type Error struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
+}
+
 /********************************************************/
 /*************** Stream Content Structure ***************/
 /********************************************************/
@@ -114,13 +119,21 @@ func NewStreamToolArgsContent(delta string) StreamToolArgsContent {
 type StreamToolResultContent struct {
 	StreamBaseContent
 
-	Delta string `json:"delta"`
+	Delta string `json:"delta,omitempty"`
+	Error *Error `json:"error,omitempty"`
 }
 
 func NewStreamToolResultContent(delta string) StreamToolResultContent {
 	return StreamToolResultContent{
 		StreamBaseContent: NewStreamBaseContent(ContentTypeToolResult),
 		Delta:             delta,
+	}
+}
+
+func NewStreamToolErrorContent(err *Error) StreamToolResultContent {
+	return StreamToolResultContent{
+		StreamBaseContent: NewStreamBaseContent(ContentTypeToolResult),
+		Error:             err,
 	}
 }
 
@@ -214,14 +227,14 @@ func NewStreamCustomContent(raw string) StreamCustomContent {
 type StreamMCPCallContent struct {
 	StreamBaseContent
 
-	McpName  string `json:"mcp_name"`
+	Server   string `json:"server"`
 	ToolName string `json:"tool_name"`
 }
 
 func NewStreamMCPCallContent(mcpName string, toolName string) StreamMCPCallContent {
 	return StreamMCPCallContent{
 		StreamBaseContent: NewStreamBaseContent(ContentTypeMcpCall),
-		McpName:           mcpName,
+		Server:            mcpName,
 		ToolName:          toolName,
 	}
 }
@@ -244,13 +257,21 @@ func NewStreamMCPArgsContent(delta string) StreamMCPArgsContent {
 type StreamMCPResultContent struct {
 	StreamBaseContent
 
-	Delta string `json:"delta"`
+	Delta string `json:"delta,omitempty"`
+	Error *Error `json:"error,omitempty"`
 }
 
 func NewStreamMCPResultContent(delta string) StreamMCPResultContent {
 	return StreamMCPResultContent{
 		StreamBaseContent: NewStreamBaseContent(ContentTypeMcpResult),
 		Delta:             delta,
+	}
+}
+
+func NewStreamMCPErrorContent(err *Error) StreamMCPResultContent {
+	return StreamMCPResultContent{
+		StreamBaseContent: NewStreamBaseContent(ContentTypeMcpResult),
+		Error:             err,
 	}
 }
 
@@ -272,15 +293,23 @@ func NewStreamCommandContent(delta string) StreamCommandContent {
 type StreamCommandResultContent struct {
 	StreamBaseContent
 
-	Delta    string `json:"delta"`
-	ExitCode int    `json:"exit_code"`
+	Delta    string `json:"delta,omitempty"`
+	ExitCode *int   `json:"exit_code,omitempty"`
+	Error    *Error `json:"error,omitempty"`
 }
 
 func NewStreamCommandResultContent(delta string, exitCode int) StreamCommandResultContent {
 	return StreamCommandResultContent{
 		StreamBaseContent: NewStreamBaseContent(ContentTypeCommandExecutionResult),
 		Delta:             delta,
-		ExitCode:          exitCode,
+		ExitCode:          &exitCode,
+	}
+}
+
+func NewStreamCommandErrorContent(err *Error) StreamCommandResultContent {
+	return StreamCommandResultContent{
+		StreamBaseContent: NewStreamBaseContent(ContentTypeCommandExecutionResult),
+		Error:             err,
 	}
 }
 
@@ -304,7 +333,8 @@ func NewStreamCodeContent(lang string, delta string) StreamCodeExecutionContent 
 type StreamCodeExecutionResultContent struct {
 	StreamBaseContent
 
-	Delta string `json:"delta"`
+	Delta string `json:"delta,omitempty"`
+	Error *Error `json:"error,omitempty"`
 }
 
 func NewStreamCodeResultContent(delta string) StreamCodeExecutionResultContent {
@@ -314,14 +344,55 @@ func NewStreamCodeResultContent(delta string) StreamCodeExecutionResultContent {
 	}
 }
 
+func NewStreamCodeErrorContent(err *Error) StreamCodeExecutionResultContent {
+	return StreamCodeExecutionResultContent{
+		StreamBaseContent: NewStreamBaseContent(ContentTypeCodeExecutionResult),
+		Error:             err,
+	}
+}
+
 // 网络搜索
-type StreamNetworkSearchContent struct {
+type StreamWebSearchContent struct {
 	StreamBaseContent
+
+	Delta string `json:"delta"` // query
+}
+
+func NewStreamWebSearchContent(delta string) StreamWebSearchContent {
+	return StreamWebSearchContent{
+		StreamBaseContent: NewStreamBaseContent(ContentTypeWebSearch),
+		Delta:             delta,
+	}
 }
 
 // 网络搜索结果
-type StreamNetworkSearchResultContent struct {
+type StreamWebSearchResultContent struct {
 	StreamBaseContent
+
+	Answer  string            `json:"answer,omitempty"`
+	Results []WebSearchResult `json:"results,omitempty"`
+	Error   *Error            `json:"error,omitempty"`
+}
+
+type WebSearchResult struct {
+	Title   string `json:"title"`
+	Url     string `json:"url"`
+	Snippet string `json:"snippet"`
+}
+
+func NewStreamWebSearchResultContent(answer string, results []WebSearchResult) StreamWebSearchResultContent {
+	return StreamWebSearchResultContent{
+		StreamBaseContent: NewStreamBaseContent(ContentTypeWebSearchResult),
+		Answer:            answer,
+		Results:           results,
+	}
+}
+
+func NewStreamWebSearchErrorContent(err *Error) StreamWebSearchResultContent {
+	return StreamWebSearchResultContent{
+		StreamBaseContent: NewStreamBaseContent(ContentTypeWebSearchResult),
+		Error:             err,
+	}
 }
 
 // 代办列表
@@ -389,7 +460,8 @@ type ToolCallContent struct {
 
 	ToolName   string `json:"tool_name"`
 	ToolArgs   string `json:"tool_args"`
-	ToolResult string `json:"tool_result"`
+	ToolResult string `json:"tool_result,omitempty"`
+	Error      *Error `json:"error,omitempty"`
 }
 
 func NewToolCallContent(toolName string) *ToolCallContent {
@@ -471,16 +543,17 @@ func NewVariableContent(variables map[string]any) *VariableContent {
 type MCPContent struct {
 	BaseContent
 
-	McpName    string `json:"mcp_name"`
+	Server     string `json:"server"`
 	ToolName   string `json:"tool_name"`
 	ToolArgs   string `json:"tool_args"`
-	ToolResult string `json:"tool_result"`
+	ToolResult string `json:"tool_result,omitempty"`
+	Error      *Error `json:"error,omitempty"`
 }
 
 func NewMCPContent(mcpName, toolName string) *MCPContent {
 	return &MCPContent{
 		BaseContent: NewBaseContent(ContentTypeMcpCall),
-		McpName:     mcpName,
+		Server:      mcpName,
 		ToolName:    toolName,
 	}
 }
@@ -490,8 +563,9 @@ type CommandContent struct {
 	BaseContent
 
 	Command  string `json:"command"`
-	Result   string `json:"result"`
-	ExitCode int    `json:"exit_code"`
+	Result   string `json:"result,omitempty"`
+	ExitCode *int   `json:"exit_code,omitempty"`
+	Error    *Error `json:"error,omitempty"`
 }
 
 func NewCommandContent(command string) *CommandContent {
@@ -507,7 +581,8 @@ type CodeExecutionContent struct {
 
 	Lang   string `json:"lang"`
 	Code   string `json:"code"`
-	Result string `json:"result"`
+	Result string `json:"result,omitempty"`
+	Error  *Error `json:"error,omitempty"`
 }
 
 func NewCodeExecutionContent(lang, code string) *CodeExecutionContent {
@@ -521,6 +596,18 @@ func NewCodeExecutionContent(lang, code string) *CodeExecutionContent {
 // 网络搜索
 type WebSearchContent struct {
 	BaseContent
+
+	Query   string            `json:"query"`
+	Answer  string            `json:"answer,omitempty"`
+	Results []WebSearchResult `json:"results,omitempty"`
+	Error   *Error            `json:"error,omitempty"`
+}
+
+func NewWebSearchContent(query string) *WebSearchContent {
+	return &WebSearchContent{
+		BaseContent: NewBaseContent(ContentTypeWebSearch),
+		Query:       query,
+	}
 }
 
 // 代办列表

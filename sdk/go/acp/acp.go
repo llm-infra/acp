@@ -256,7 +256,11 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 		if !ok || content == nil {
 			return ErrContentEvent
 		}
-		content.(*ToolCallContent).ToolResult += evt.Delta
+		if evt.Error != nil {
+			content.(*ToolCallContent).Error = evt.Error
+		} else {
+			content.(*ToolCallContent).ToolResult += evt.Delta
+		}
 
 	case ContentTypeFile:
 		evt, ok := sc.(StreamFileContent)
@@ -318,7 +322,7 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 		}
 
 		if content == nil {
-			content = NewMCPContent(evt.McpName, evt.ToolName)
+			content = NewMCPContent(evt.Server, evt.ToolName)
 		}
 
 	case ContentTypeMcpArgs:
@@ -333,7 +337,11 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 		if !ok || content == nil {
 			return ErrContentEvent
 		}
-		content.(*MCPContent).ToolResult += evt.Delta
+		if evt.Error != nil {
+			content.(*MCPContent).Error = evt.Error
+		} else {
+			content.(*MCPContent).ToolResult += evt.Delta
+		}
 
 	case ContentTypeCommandExecution:
 		evt, ok := sc.(StreamCommandContent)
@@ -350,7 +358,11 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 		if !ok || content == nil {
 			return ErrContentEvent
 		}
-		content.(*CommandContent).Result += evt.Delta
+		if evt.Error != nil {
+			content.(*CommandContent).Error = evt.Error
+		} else {
+			content.(*CommandContent).Result += evt.Delta
+		}
 
 	case ContentTypeCodeExecution:
 		evt, ok := sc.(StreamCodeExecutionContent)
@@ -369,7 +381,34 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 		if !ok || content == nil {
 			return ErrContentEvent
 		}
-		content.(*CodeExecutionContent).Result += evt.Delta
+		if evt.Error != nil {
+			content.(*CodeExecutionContent).Error = evt.Error
+		} else {
+			content.(*CodeExecutionContent).Result += evt.Delta
+		}
+
+	case ContentTypeWebSearch:
+		evt, ok := sc.(StreamWebSearchContent)
+		if !ok {
+			return ErrContentEvent
+		}
+
+		if content == nil {
+			content = NewWebSearchContent(evt.Delta)
+		}
+
+	case ContentTypeWebSearchResult:
+		evt, ok := sc.(StreamWebSearchResultContent)
+		if !ok {
+			return ErrContentEvent
+		}
+
+		if evt.Error != nil {
+			content.(*WebSearchContent).Error = evt.Error
+		} else {
+			content.(*WebSearchContent).Answer = evt.Answer
+			content.(*WebSearchContent).Results = evt.Results
+		}
 	}
 
 	m.contentMap[id] = content
