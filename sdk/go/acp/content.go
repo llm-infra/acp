@@ -18,7 +18,6 @@ const (
 	ContentTypeArtifact    = "artifact"
 	ContentTypeVariable    = "variable"
 	ContentTypeInteraction = "interaction"
-	ContentTypePatch       = "patch"
 	ContentTypeCustom      = "custom"
 
 	ContentTypeMcpCall                = "mcp_call"
@@ -202,11 +201,19 @@ func NewStreamVariableContent(delta map[string]any) StreamVariableContent {
 // 交互流式消息
 type StreamInteractionContent struct {
 	StreamBaseContent
+
+	InteractionID string         `json:"interaction_id,omitempty"`
+	A2UIVersion   string         `json:"a2ui_version,omitempty"`
+	A2UIMessage   map[string]any `json:"a2ui_message,omitempty"`
 }
 
-// 变更流式消息
-type StreamPatchContent struct {
-	StreamBaseContent
+func NewStreamInteractionContent(interactionID, a2uiVersion string, a2uiMessage map[string]any) StreamInteractionContent {
+	return StreamInteractionContent{
+		StreamBaseContent: NewStreamBaseContent(ContentTypeInteraction),
+		InteractionID:     interactionID,
+		A2UIVersion:       a2uiVersion,
+		A2UIMessage:       a2uiMessage,
+	}
 }
 
 // 自定义流式消息
@@ -536,8 +543,46 @@ func NewVariableContent(variables map[string]any) *VariableContent {
 }
 
 // 交互消息
+type InteractionContent struct {
+	BaseContent
+
+	InteractionID string           `json:"interaction_id,omitempty"`
+	A2UIVersion   string           `json:"a2ui_version,omitempty"`
+	A2UIMessages  []map[string]any `json:"a2ui_messages,omitempty"`
+}
+
+func NewInteractionContent(interactionID, a2uiVersion string, a2uiMessage map[string]any) *InteractionContent {
+	c := &InteractionContent{
+		BaseContent:   NewBaseContent(ContentTypeInteraction),
+		InteractionID: interactionID,
+		A2UIVersion:   a2uiVersion,
+		A2UIMessages:  make([]map[string]any, 0, 1),
+	}
+	if a2uiMessage != nil {
+		c.A2UIMessages = append(c.A2UIMessages, a2uiMessage)
+	}
+	return c
+}
+
+func (c *InteractionContent) AddMessage(msg map[string]any) {
+	if msg != nil {
+		c.A2UIMessages = append(c.A2UIMessages, msg)
+	}
+}
 
 // 自定义消息
+type CustomContent struct {
+	BaseContent
+
+	Raw string `json:"raw"`
+}
+
+func NewCustomContent(raw string) *CustomContent {
+	return &CustomContent{
+		BaseContent: NewBaseContent(ContentTypeCustom),
+		Raw:         raw,
+	}
+}
 
 // MCP消息
 type MCPContent struct {
@@ -654,6 +699,24 @@ func unmarshalContent(data []byte) (Content, error) {
 		return &c, nil
 	case ContentTypeArtifact:
 		var c ArtifactContent
+		if err := json.Unmarshal(data, &c); err != nil {
+			return nil, err
+		}
+		return &c, nil
+	case ContentTypeVariable:
+		var c VariableContent
+		if err := json.Unmarshal(data, &c); err != nil {
+			return nil, err
+		}
+		return &c, nil
+	case ContentTypeInteraction:
+		var c InteractionContent
+		if err := json.Unmarshal(data, &c); err != nil {
+			return nil, err
+		}
+		return &c, nil
+	case ContentTypeCustom:
+		var c CustomContent
 		if err := json.Unmarshal(data, &c); err != nil {
 			return nil, err
 		}

@@ -23,11 +23,11 @@ func (m *Message) GetInputs() (*TextContent, []*FileContent) {
 
 	for _, b := range m.Blocks {
 		for _, c := range b.Contents {
-			switch c.(type) {
+			switch c := c.(type) {
 			case *TextContent:
-				text = c.(*TextContent)
+				text = c
 			case *FileContent:
-				files = append(files, c.(*FileContent))
+				files = append(files, c)
 			}
 		}
 	}
@@ -41,11 +41,11 @@ func (m *Message) GetVariables() (*TextContent, *VariableContent) {
 
 	for _, b := range m.Blocks {
 		for _, c := range b.Contents {
-			switch c.(type) {
+			switch c := c.(type) {
 			case *TextContent:
-				text = c.(*TextContent)
+				text = c
 			case *VariableContent:
-				variables = c.(*VariableContent)
+				variables = c
 			}
 		}
 	}

@@ -81,13 +81,8 @@ func (m *Creator) AddEvent(e Event) (err error) {
 }
 
 func (m *Creator) processRunEvent(e Event) error {
-	switch e.(type) {
+	switch evt := e.(type) {
 	case RunStartedEvent:
-		evt, ok := e.(RunStartedEvent)
-		if !ok {
-			return ErrRunEvent
-		}
-
 		m.ID = evt.RunID
 		return nil
 
@@ -95,11 +90,6 @@ func (m *Creator) processRunEvent(e Event) error {
 		return nil
 
 	case RunErrorEvent:
-		evt, ok := e.(RunErrorEvent)
-		if !ok {
-			return ErrRunEvent
-		}
-
 		m.Errors = evt.Error
 		return nil
 
@@ -109,13 +99,8 @@ func (m *Creator) processRunEvent(e Event) error {
 }
 
 func (m *Creator) processBlockEvent(e Event) error {
-	switch e.(type) {
+	switch evt := e.(type) {
 	case BlockStartEvent:
-		evt, ok := e.(BlockStartEvent)
-		if !ok {
-			return ErrBlockEvent
-		}
-
 		m.Blocks = append(m.Blocks, Block{
 			ID:            evt.BlockID,
 			Contents:      make([]Content, 0),
@@ -127,11 +112,6 @@ func (m *Creator) processBlockEvent(e Event) error {
 		return nil
 
 	case BlockEndEvent:
-		evt, ok := e.(BlockEndEvent)
-		if !ok {
-			return ErrBlockEvent
-		}
-
 		for i := len(m.Blocks) - 1; i >= 0; i-- {
 			if m.Blocks[i].ID == evt.BlockID {
 				m.Blocks[i].Usage = evt.Usage
@@ -146,13 +126,8 @@ func (m *Creator) processBlockEvent(e Event) error {
 }
 
 func (m *Creator) processContentEvent(e Event) error {
-	switch e.(type) {
+	switch evt := e.(type) {
 	case ContentStartEvent:
-		evt, ok := e.(ContentStartEvent)
-		if !ok {
-			return ErrContentEvent
-		}
-
 		for i := len(m.Blocks) - 1; i >= 0; i-- {
 			if m.Blocks[i].ID == evt.RelatedBlockID {
 				m.mux.Lock()
@@ -165,19 +140,9 @@ func (m *Creator) processContentEvent(e Event) error {
 		return nil
 
 	case ContentDeltaEvent:
-		evt, ok := e.(ContentDeltaEvent)
-		if !ok {
-			return ErrContentEvent
-		}
-
 		return m.processContent(evt.ContentID, evt.Content)
 
 	case ContentEndEvent:
-		evt, ok := e.(ContentEndEvent)
-		if !ok {
-			return ErrContentEvent
-		}
-
 		m.mux.Lock()
 		content, ok1 := m.contentMap[evt.ContentID]
 		blockID, ok2 := m.contentIDMap[evt.ContentID]
@@ -313,6 +278,38 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 			for k, v := range evt.Delta {
 				content.(*VariableContent).Variables[k] = v
 			}
+		}
+
+	case ContentTypeInteraction:
+		evt, ok := sc.(StreamInteractionContent)
+		if !ok {
+			return ErrContentEvent
+		}
+
+		if content == nil {
+			content = NewInteractionContent(evt.InteractionID, evt.A2UIVersion, evt.A2UIMessage)
+		} else {
+			interaction, ok := content.(*InteractionContent)
+			if !ok {
+				return ErrContentEvent
+			}
+			if interaction.InteractionID == "" && evt.InteractionID != "" {
+				interaction.InteractionID = evt.InteractionID
+			}
+			if interaction.A2UIVersion == "" && evt.A2UIVersion != "" {
+				interaction.A2UIVersion = evt.A2UIVersion
+			}
+			interaction.AddMessage(evt.A2UIMessage)
+		}
+
+	case ContentTypeCustom:
+		evt, ok := sc.(StreamCustomContent)
+		if !ok {
+			return ErrContentEvent
+		}
+
+		if content == nil {
+			content = NewCustomContent(evt.Raw)
 		}
 
 	case ContentTypeMcpCall:
