@@ -406,6 +406,25 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 			content.(*WebSearchContent).Answer = evt.Answer
 			content.(*WebSearchContent).Results = evt.Results
 		}
+
+	case ContentTypeSkillLoad:
+		evt, ok := sc.(StreamSkillLoadedContent)
+		if !ok {
+			return ErrContentEvent
+		}
+
+		if content == nil {
+			content = NewSkillLoadedContent(evt.Name)
+		} else {
+			skillLoaded, ok := content.(*SkillLoadedContent)
+			if !ok {
+				return ErrContentEvent
+			}
+			if skillLoaded.Name != "" {
+				return ErrContentEvent
+			}
+			skillLoaded.Name = evt.Name
+		}
 	}
 
 	m.contentMap[id] = content

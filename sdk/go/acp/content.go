@@ -30,6 +30,7 @@ const (
 	ContentTypeWebSearch              = "web_search"
 	ContentTypeWebSearchResult        = "web_search_result"
 	ContentTypeTodoList               = "todo_list"
+	ContentTypeSkillLoad              = "skill_loaded"
 )
 
 type Error struct {
@@ -407,6 +408,20 @@ type StreamTodoContent struct {
 	StreamBaseContent
 }
 
+// SkillLoadedContent
+type StreamSkillLoadedContent struct {
+	StreamBaseContent
+
+	Name string `json:"name"`
+}
+
+func NewStreamSkillLoadedContent(name string) StreamSkillLoadedContent {
+	return StreamSkillLoadedContent{
+		StreamBaseContent: NewStreamBaseContent(ContentTypeSkillLoad),
+		Name:              name,
+	}
+}
+
 /********************************************************/
 /*************** Session Content Structure **************/
 /********************************************************/
@@ -660,6 +675,19 @@ type TodoListContent struct {
 	BaseContent
 }
 
+type SkillLoadedContent struct {
+	BaseContent
+
+	Name string `json:"name"`
+}
+
+func NewSkillLoadedContent(name string) *SkillLoadedContent {
+	return &SkillLoadedContent{
+		BaseContent: NewBaseContent(ContentTypeSkillLoad),
+		Name:        name,
+	}
+}
+
 func unmarshalContent(data []byte) (Content, error) {
 	var base BaseContent
 	if err := json.Unmarshal(data, &base); err != nil {
@@ -747,6 +775,12 @@ func unmarshalContent(data []byte) (Content, error) {
 		return &c, nil
 	case ContentTypeTodoList:
 		var c TodoListContent
+		if err := json.Unmarshal(data, &c); err != nil {
+			return nil, err
+		}
+		return &c, nil
+	case ContentTypeSkillLoad:
+		var c SkillLoadedContent
 		if err := json.Unmarshal(data, &c); err != nil {
 			return nil, err
 		}

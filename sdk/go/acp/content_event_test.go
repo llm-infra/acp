@@ -68,6 +68,24 @@ func TestCreatorCustomContentRejectsDuplicateDelta(t *testing.T) {
 	assert.ErrorIs(t, err, ErrContentEvent)
 }
 
+func TestCreatorAggregatesSkillLoadedContent(t *testing.T) {
+	creator := NewCreator(nil)
+	blockID := uuid.NewString()
+	contentID := uuid.NewString()
+
+	require.NoError(t, creator.AddEvent(NewBlockStartEvent(blockID)))
+	require.NoError(t, creator.AddEvent(NewContentStartEvent(contentID, blockID)))
+	require.NoError(t, creator.AddEvent(NewContentDeltaEvent(contentID, NewStreamSkillLoadedContent("content-type-skill-load"))))
+	require.NoError(t, creator.AddEvent(NewContentEndEvent(contentID)))
+
+	require.Len(t, creator.Blocks, 1)
+	require.Len(t, creator.Blocks[0].Contents, 1)
+
+	skillLoaded, ok := creator.Blocks[0].Contents[0].(*SkillLoadedContent)
+	require.True(t, ok)
+	assert.Equal(t, "content-type-skill-load", skillLoaded.Name)
+}
+
 func TestUnmarshalMessageWithInteractionAndCustom(t *testing.T) {
 	payload := `{
 		"id": "m1",
@@ -85,12 +103,16 @@ func TestUnmarshalMessageWithInteractionAndCustom(t *testing.T) {
 						]
 					},
 					{
-						"type": "custom",
-						"raw": "{\"k\":\"v\"}"
-					}
-				]
-			}
-		],
+							"type": "custom",
+							"raw": "{\"k\":\"v\"}"
+						},
+						{
+							"type": "skill_loaded",
+							"name": "content-type-skill-load"
+						}
+					]
+				}
+			],
 		"created_at": 1,
 		"updated_at": 2
 	}`
@@ -98,10 +120,12 @@ func TestUnmarshalMessageWithInteractionAndCustom(t *testing.T) {
 	var msg Message
 	require.NoError(t, json.Unmarshal([]byte(payload), &msg))
 	require.Len(t, msg.Blocks, 1)
-	require.Len(t, msg.Blocks[0].Contents, 2)
+	require.Len(t, msg.Blocks[0].Contents, 3)
 
 	_, ok1 := msg.Blocks[0].Contents[0].(*InteractionContent)
 	_, ok2 := msg.Blocks[0].Contents[1].(*CustomContent)
+	_, ok3 := msg.Blocks[0].Contents[2].(*SkillLoadedContent)
 	assert.True(t, ok1)
 	assert.True(t, ok2)
+	assert.True(t, ok3)
 }
