@@ -404,8 +404,17 @@ func NewStreamWebSearchErrorContent(err *Error) StreamWebSearchResultContent {
 }
 
 // 代办列表
-type StreamTodoContent struct {
+type StreamTodoListContent struct {
 	StreamBaseContent
+
+	Todos []TodoItem `json:"todos"`
+}
+
+func NewStreamTodoListContent(todos []TodoItem) StreamTodoListContent {
+	return StreamTodoListContent{
+		StreamBaseContent: NewStreamBaseContent(ContentTypeTodoList),
+		Todos:             todos,
+	}
 }
 
 // SkillLoadedContent
@@ -673,6 +682,21 @@ func NewWebSearchContent(query string) *WebSearchContent {
 // 代办列表
 type TodoListContent struct {
 	BaseContent
+
+	Todos []TodoItem `json:"todos"`
+}
+
+type TodoItem struct {
+	Content  string `json:"content"`
+	Priority string `json:"priority"`
+	Status   string `json:"status"`
+}
+
+func NewTodoListContent(todos []TodoItem) *TodoListContent {
+	return &TodoListContent{
+		BaseContent: NewBaseContent(ContentTypeTodoList),
+		Todos:       todos,
+	}
 }
 
 type SkillLoadedContent struct {

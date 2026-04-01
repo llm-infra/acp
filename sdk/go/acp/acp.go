@@ -407,6 +407,22 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 			content.(*WebSearchContent).Results = evt.Results
 		}
 
+	case ContentTypeTodoList:
+		evt, ok := sc.(StreamTodoListContent)
+		if !ok {
+			return ErrContentEvent
+		}
+
+		if content == nil {
+			content = NewTodoListContent(evt.Todos)
+		} else {
+			todoList, ok := content.(*TodoListContent)
+			if !ok {
+				return ErrContentEvent
+			}
+			todoList.Todos = evt.Todos
+		}
+
 	case ContentTypeSkillLoad:
 		evt, ok := sc.(StreamSkillLoadedContent)
 		if !ok {
