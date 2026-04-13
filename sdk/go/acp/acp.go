@@ -310,6 +310,8 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 
 		if content == nil {
 			content = NewCustomContent(evt.Raw)
+		} else {
+			return ErrContentEvent
 		}
 
 	case ContentTypeMcpCall:
@@ -440,6 +442,26 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 				return ErrContentEvent
 			}
 			skillLoaded.Name = evt.Name
+		}
+
+	case ContentTypeQA:
+		evt, ok := sc.(StreamQAContent)
+		if !ok {
+			return ErrContentEvent
+		}
+
+		if content == nil {
+			content = NewQAContent(evt.ID, evt.QAType, evt.Name, evt.Message, evt.Options)
+		} else {
+			streamQA, ok := content.(*QAContent)
+			if !ok {
+				return ErrContentEvent
+			}
+			streamQA.ID = evt.ID
+			streamQA.QAType = evt.QAType
+			streamQA.Name = evt.Name
+			streamQA.Message = evt.Message
+			streamQA.Options = evt.Options
 		}
 	}
 

@@ -31,6 +31,7 @@ const (
 	ContentTypeWebSearchResult        = "web_search_result"
 	ContentTypeTodoList               = "todo_list"
 	ContentTypeSkillLoad              = "skill_loaded"
+	ContentTypeQA                     = "qa"
 )
 
 type Error struct {
@@ -431,6 +432,27 @@ func NewStreamSkillLoadedContent(name string) StreamSkillLoadedContent {
 	}
 }
 
+type StreamQAContent struct {
+	StreamBaseContent
+
+	ID      string         `json:"id"`
+	QAType  string         `json:"type"`
+	Name    string         `json:"name"`
+	Message string         `json:"message,omitempty"`
+	Options map[string]any `json:"options,omitempty"`
+}
+
+func NewStreamQAContent(id, t, name, message string, options map[string]any) StreamQAContent {
+	return StreamQAContent{
+		StreamBaseContent: NewStreamBaseContent(ContentTypeQA),
+		ID:                id,
+		QAType:            t,
+		Name:              name,
+		Message:           message,
+		Options:           options,
+	}
+}
+
 /********************************************************/
 /*************** Session Content Structure **************/
 /********************************************************/
@@ -712,6 +734,27 @@ func NewSkillLoadedContent(name string) *SkillLoadedContent {
 	}
 }
 
+type QAContent struct {
+	BaseContent
+
+	ID      string         `json:"id"`
+	QAType  string         `json:"type"`
+	Name    string         `json:"name"`
+	Message string         `json:"message,omitempty"`
+	Options map[string]any `json:"options,omitempty"`
+}
+
+func NewQAContent(id, t, name, message string, options map[string]any) *QAContent {
+	return &QAContent{
+		BaseContent: NewBaseContent(ContentTypeQA),
+		ID:          id,
+		QAType:      t,
+		Name:        name,
+		Message:     message,
+		Options:     options,
+	}
+}
+
 func unmarshalContent(data []byte) (Content, error) {
 	var base BaseContent
 	if err := json.Unmarshal(data, &base); err != nil {
@@ -805,6 +848,12 @@ func unmarshalContent(data []byte) (Content, error) {
 		return &c, nil
 	case ContentTypeSkillLoad:
 		var c SkillLoadedContent
+		if err := json.Unmarshal(data, &c); err != nil {
+			return nil, err
+		}
+		return &c, nil
+	case ContentTypeQA:
+		var c QAContent
 		if err := json.Unmarshal(data, &c); err != nil {
 			return nil, err
 		}

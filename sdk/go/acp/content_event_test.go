@@ -86,6 +86,31 @@ func TestCreatorAggregatesSkillLoadedContent(t *testing.T) {
 	assert.Equal(t, "content-type-skill-load", skillLoaded.Name)
 }
 
+func TestCreatorAggregatesQAContent(t *testing.T) {
+	creator := NewCreator(nil)
+	blockID := uuid.NewString()
+	contentID := uuid.NewString()
+	options := map[string]any{
+		"choices": []string{"A", "B"},
+	}
+
+	require.NoError(t, creator.AddEvent(NewBlockStartEvent(blockID)))
+	require.NoError(t, creator.AddEvent(NewContentStartEvent(contentID, blockID)))
+	require.NoError(t, creator.AddEvent(NewContentDeltaEvent(contentID, NewStreamQAContent("qa_1", "confirm", "deploy", "continue?", options))))
+	require.NoError(t, creator.AddEvent(NewContentEndEvent(contentID)))
+
+	require.Len(t, creator.Blocks, 1)
+	require.Len(t, creator.Blocks[0].Contents, 1)
+
+	qa, ok := creator.Blocks[0].Contents[0].(*QAContent)
+	require.True(t, ok)
+	assert.Equal(t, "qa_1", qa.ID)
+	assert.Equal(t, "confirm", qa.QAType)
+	assert.Equal(t, "deploy", qa.Name)
+	assert.Equal(t, "continue?", qa.Message)
+	assert.Equal(t, options, qa.Options)
+}
+
 func TestUnmarshalMessageWithInteractionAndCustom(t *testing.T) {
 	payload := `{
 		"id": "m1",
@@ -128,4 +153,41 @@ func TestUnmarshalMessageWithInteractionAndCustom(t *testing.T) {
 	assert.True(t, ok1)
 	assert.True(t, ok2)
 	assert.True(t, ok3)
+}
+
+func TestUnmarshalMessageWithQAContent(t *testing.T) {
+	payload := `{
+		"id": "m1",
+		"role": "assistant",
+		"blocks": [
+			{
+				"id": "b1",
+				"contents": [
+					{
+						"type": "qa",
+						"id": "qa_1",
+						"name": "deploy",
+						"message": "continue?",
+						"options": {
+							"choices": ["A", "B"]
+						}
+					}
+				]
+			}
+		],
+		"created_at": 1,
+		"updated_at": 2
+	}`
+
+	var msg Message
+	require.NoError(t, json.Unmarshal([]byte(payload), &msg))
+	require.Len(t, msg.Blocks, 1)
+	require.Len(t, msg.Blocks[0].Contents, 1)
+
+	qa, ok := msg.Blocks[0].Contents[0].(*QAContent)
+	require.True(t, ok)
+	assert.Equal(t, "qa_1", qa.ID)
+	assert.Equal(t, "deploy", qa.Name)
+	assert.Equal(t, "continue?", qa.Message)
+	assert.Equal(t, map[string]any{"choices": []any{"A", "B"}}, qa.Options)
 }
