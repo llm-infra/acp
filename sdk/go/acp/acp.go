@@ -463,6 +463,18 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 			streamQA.Message = evt.Message
 			streamQA.Options = evt.Options
 		}
+
+	case ContentTypeQAResult:
+		evt, ok := sc.(StreamQAResultContent)
+		if !ok || content == nil {
+			return ErrContentEvent
+		}
+
+		qa, ok := content.(*QAContent)
+		if !ok {
+			return ErrContentEvent
+		}
+		qa.Answer = evt.Answer
 	}
 
 	m.contentMap[id] = content

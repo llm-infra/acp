@@ -32,6 +32,7 @@ const (
 	ContentTypeTodoList               = "todo_list"
 	ContentTypeSkillLoad              = "skill_loaded"
 	ContentTypeQA                     = "qa"
+	ContentTypeQAResult               = "qa_result"
 )
 
 type Error struct {
@@ -454,6 +455,19 @@ func NewStreamQAContent(qaid, qatype, qaname, message string,
 	}
 }
 
+type StreamQAResultContent struct {
+	StreamBaseContent
+
+	Answer map[string]any `json:"answer,omitempty"`
+}
+
+func NewStreamQAResultContent(answer map[string]any) StreamQAResultContent {
+	return StreamQAResultContent{
+		StreamBaseContent: NewStreamBaseContent(ContentTypeQAResult),
+		Answer:            answer,
+	}
+}
+
 /********************************************************/
 /*************** Session Content Structure **************/
 /********************************************************/
@@ -743,6 +757,7 @@ type QAContent struct {
 	QAName  string         `json:"qa_name"`
 	Message string         `json:"message,omitempty"`
 	Options map[string]any `json:"options,omitempty"`
+	Answer  map[string]any `json:"answer,omitempty"`
 }
 
 func NewQAContent(qaid, qatype, qaname, message string, options map[string]any) *QAContent {

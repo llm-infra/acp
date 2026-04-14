@@ -111,6 +111,33 @@ func TestCreatorAggregatesQAContent(t *testing.T) {
 	assert.Equal(t, options, qa.Options)
 }
 
+func TestCreatorAggregatesQAResultContentIntoQAContent(t *testing.T) {
+	creator := NewCreator(nil)
+	blockID := uuid.NewString()
+	contentID := uuid.NewString()
+	options := map[string]any{
+		"choices": []string{"A", "B"},
+	}
+	answer := map[string]any{
+		"choice": "A",
+		"confirmed": true,
+	}
+
+	require.NoError(t, creator.AddEvent(NewBlockStartEvent(blockID)))
+	require.NoError(t, creator.AddEvent(NewContentStartEvent(contentID, blockID)))
+	require.NoError(t, creator.AddEvent(NewContentDeltaEvent(contentID, NewStreamQAContent("qa_1", "confirm", "deploy", "continue?", options))))
+	require.NoError(t, creator.AddEvent(NewContentDeltaEvent(contentID, NewStreamQAResultContent(answer))))
+	require.NoError(t, creator.AddEvent(NewContentEndEvent(contentID)))
+
+	require.Len(t, creator.Blocks, 1)
+	require.Len(t, creator.Blocks[0].Contents, 1)
+
+	qa, ok := creator.Blocks[0].Contents[0].(*QAContent)
+	require.True(t, ok)
+	assert.Equal(t, answer, qa.Answer)
+	assert.Equal(t, options, qa.Options)
+}
+
 func TestUnmarshalMessageWithInteractionAndCustom(t *testing.T) {
 	payload := `{
 		"id": "m1",
@@ -190,4 +217,77 @@ func TestUnmarshalMessageWithQAContent(t *testing.T) {
 	assert.Equal(t, "deploy", qa.QAName)
 	assert.Equal(t, "continue?", qa.Message)
 	assert.Equal(t, map[string]any{"choices": []any{"A", "B"}}, qa.Options)
+}
+
+func TestUnmarshalMessageWithQAAnswer(t *testing.T) {
+	payload := `{
+		"id": "m1",
+		"role": "assistant",
+		"blocks": [
+			{
+				"id": "b1",
+				"contents": [
+					{
+						"type": "qa",
+						"qa_id": "qa_1",
+						"qa_type": "confirm",
+						"qa_name": "deploy",
+						"message": "continue?",
+						"options": {
+							"choices": ["A", "B"]
+						},
+						"answer": {
+							"choice": "A",
+							"confirmed": true
+						}
+					}
+				]
+			}
+		],
+		"created_at": 1,
+		"updated_at": 2
+	}`
+
+	var msg Message
+	require.NoError(t, json.Unmarshal([]byte(payload), &msg))
+	require.Len(t, msg.Blocks, 1)
+	require.Len(t, msg.Blocks[0].Contents, 1)
+
+	qa, ok := msg.Blocks[0].Contents[0].(*QAContent)
+	require.True(t, ok)
+	assert.Equal(t, map[string]any{
+		"choice":    "A",
+		"confirmed": true,
+	}, qa.Answer)
+}
+
+func TestUnmarshalMessageWithQAResultContent(t *testing.T) {
+	payload := `{
+		"id": "m1",
+		"role": "assistant",
+		"blocks": [
+			{
+				"id": "b1",
+				"contents": [
+					{
+						"type": "qa_result",
+						"answer": {
+							"choice": "A"
+						}
+					}
+				]
+			}
+		],
+		"created_at": 1,
+		"updated_at": 2
+	}`
+
+	var msg Message
+	require.NoError(t, json.Unmarshal([]byte(payload), &msg))
+	require.Len(t, msg.Blocks, 1)
+	require.Len(t, msg.Blocks[0].Contents, 1)
+
+	qa, ok := msg.Blocks[0].Contents[0].(*QAContent)
+	require.True(t, ok)
+	assert.Equal(t, map[string]any{"choice": "A"}, qa.Answer)
 }
