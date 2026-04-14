@@ -103,6 +103,7 @@ func (m *Creator) processBlockEvent(e Event) error {
 	case BlockStartEvent:
 		m.Blocks = append(m.Blocks, Block{
 			ID:            evt.BlockID,
+			Usage:         &Usage{},
 			Contents:      make([]Content, 0),
 			IsParallel:    evt.IsParallel,
 			IsSubagent:    evt.IsSubagent,

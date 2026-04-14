@@ -55,7 +55,7 @@ func (m *Message) GetVariables() (*TextContent, *VariableContent) {
 type Block struct {
 	ID            string         `json:"id"`
 	Contents      []Content      `json:"contents"`
-	Usage         Usage          `json:"usage,omitempty"`
+	Usage         *Usage         `json:"usage,omitempty"`
 	IsParallel    bool           `json:"is_parallel,omitempty"`
 	IsSubagent    bool           `json:"is_subagent,omitempty"`
 	Metadata      map[string]any `json:"metadata,omitempty"`
@@ -66,7 +66,7 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 	type rawBlock struct {
 		ID            string            `json:"id"`
 		Contents      []json.RawMessage `json:"contents"`
-		Usage         Usage             `json:"usage,omitempty"`
+		Usage         *Usage            `json:"usage,omitempty"`
 		IsParallel    bool              `json:"is_parallel,omitempty"`
 		IsSubagent    bool              `json:"is_subagent,omitempty"`
 		Metadata      map[string]any    `json:"metadata,omitempty"`
