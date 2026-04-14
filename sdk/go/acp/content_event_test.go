@@ -104,9 +104,9 @@ func TestCreatorAggregatesQAContent(t *testing.T) {
 
 	qa, ok := creator.Blocks[0].Contents[0].(*QAContent)
 	require.True(t, ok)
-	assert.Equal(t, "qa_1", qa.ID)
+	assert.Equal(t, "qa_1", qa.QAID)
 	assert.Equal(t, "confirm", qa.QAType)
-	assert.Equal(t, "deploy", qa.Name)
+	assert.Equal(t, "deploy", qa.QAName)
 	assert.Equal(t, "continue?", qa.Message)
 	assert.Equal(t, options, qa.Options)
 }
@@ -186,8 +186,8 @@ func TestUnmarshalMessageWithQAContent(t *testing.T) {
 
 	qa, ok := msg.Blocks[0].Contents[0].(*QAContent)
 	require.True(t, ok)
-	assert.Equal(t, "qa_1", qa.ID)
-	assert.Equal(t, "deploy", qa.Name)
+	assert.Equal(t, "qa_1", qa.QAID)
+	assert.Equal(t, "deploy", qa.QAName)
 	assert.Equal(t, "continue?", qa.Message)
 	assert.Equal(t, map[string]any{"choices": []any{"A", "B"}}, qa.Options)
 }

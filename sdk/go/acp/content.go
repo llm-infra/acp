@@ -435,19 +435,20 @@ func NewStreamSkillLoadedContent(name string) StreamSkillLoadedContent {
 type StreamQAContent struct {
 	StreamBaseContent
 
-	ID      string         `json:"id"`
-	QAType  string         `json:"type"`
-	Name    string         `json:"name"`
+	QAID    string         `json:"qa_id"`
+	QAType  string         `json:"qa_type"`
+	QAName  string         `json:"qa_name"`
 	Message string         `json:"message,omitempty"`
 	Options map[string]any `json:"options,omitempty"`
 }
 
-func NewStreamQAContent(id, t, name, message string, options map[string]any) StreamQAContent {
+func NewStreamQAContent(qaid, qatype, qaname, message string,
+	options map[string]any) StreamQAContent {
 	return StreamQAContent{
 		StreamBaseContent: NewStreamBaseContent(ContentTypeQA),
-		ID:                id,
-		QAType:            t,
-		Name:              name,
+		QAID:              qaid,
+		QAType:            qatype,
+		QAName:            qaname,
 		Message:           message,
 		Options:           options,
 	}
@@ -737,19 +738,19 @@ func NewSkillLoadedContent(name string) *SkillLoadedContent {
 type QAContent struct {
 	BaseContent
 
-	ID      string         `json:"id"`
-	QAType  string         `json:"type"`
-	Name    string         `json:"name"`
+	QAID    string         `json:"qa_id"`
+	QAType  string         `json:"qa_type"`
+	QAName  string         `json:"qa_name"`
 	Message string         `json:"message,omitempty"`
 	Options map[string]any `json:"options,omitempty"`
 }
 
-func NewQAContent(id, t, name, message string, options map[string]any) *QAContent {
+func NewQAContent(qaid, qatype, qaname, message string, options map[string]any) *QAContent {
 	return &QAContent{
 		BaseContent: NewBaseContent(ContentTypeQA),
-		ID:          id,
-		QAType:      t,
-		Name:        name,
+		QAID:        qaid,
+		QAType:      qatype,
+		QAName:      qaname,
 		Message:     message,
 		Options:     options,
 	}

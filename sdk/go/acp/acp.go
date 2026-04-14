@@ -451,15 +451,15 @@ func (m *Creator) processContent(id string, sc StreamContent) error {
 		}
 
 		if content == nil {
-			content = NewQAContent(evt.ID, evt.QAType, evt.Name, evt.Message, evt.Options)
+			content = NewQAContent(evt.QAID, evt.QAType, evt.QAName, evt.Message, evt.Options)
 		} else {
 			streamQA, ok := content.(*QAContent)
 			if !ok {
 				return ErrContentEvent
 			}
-			streamQA.ID = evt.ID
+			streamQA.QAID = evt.QAID
 			streamQA.QAType = evt.QAType
-			streamQA.Name = evt.Name
+			streamQA.QAName = evt.QAName
 			streamQA.Message = evt.Message
 			streamQA.Options = evt.Options
 		}
