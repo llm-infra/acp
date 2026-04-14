@@ -132,7 +132,7 @@ type BlockEndEvent struct {
 	BaseEvent
 
 	BlockID string `json:"block_id"`
-	Usage   *Usage `json:"usage,omitempty"`
+	Usage   Usage  `json:"usage,omitempty"`
 }
 
 type Usage struct {
@@ -140,7 +140,7 @@ type Usage struct {
 	CompletionTokens int64 `json:"completion_tokens"`
 }
 
-func NewBlockEndEvent(blockID string, usage *Usage) BlockEndEvent {
+func NewBlockEndEvent(blockID string, usage Usage) BlockEndEvent {
 	return BlockEndEvent{
 		BaseEvent: NewBaseEvent(EventTypeBlockEnd),
 		BlockID:   blockID,
