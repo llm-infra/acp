@@ -11,11 +11,12 @@ import (
 
 func TestCreatorAggregatesInteractionContent(t *testing.T) {
 	creator := NewCreator(nil)
+	sessionID := uuid.NewString()
 	runID := uuid.NewString()
 	blockID := uuid.NewString()
 	contentID := uuid.NewString()
 
-	require.NoError(t, creator.AddEvent(NewRunStartedEvent(runID)))
+	require.NoError(t, creator.AddEvent(NewRunStartedEvent(sessionID, runID)))
 	require.NoError(t, creator.AddEvent(NewBlockStartEvent(blockID)))
 	require.NoError(t, creator.AddEvent(NewContentStartEvent(contentID, blockID)))
 
@@ -119,7 +120,7 @@ func TestCreatorAggregatesQAResultContentIntoQAContent(t *testing.T) {
 		"choices": []string{"A", "B"},
 	}
 	answer := map[string]any{
-		"choice": "A",
+		"choice":    "A",
 		"confirmed": true,
 	}
 

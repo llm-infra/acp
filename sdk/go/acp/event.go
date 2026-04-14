@@ -46,12 +46,14 @@ func NewBaseEvent(eventType EventType) BaseEvent {
 type RunStartedEvent struct {
 	BaseEvent
 
-	RunID string `json:"run_id"`
+	SessionID string `json:"session_id"`
+	RunID     string `json:"run_id"`
 }
 
-func NewRunStartedEvent(runID string) RunStartedEvent {
+func NewRunStartedEvent(sessionID, runID string) RunStartedEvent {
 	return RunStartedEvent{
 		BaseEvent: NewBaseEvent(EventTypeRunStarted),
+		SessionID: sessionID,
 		RunID:     runID,
 	}
 }
