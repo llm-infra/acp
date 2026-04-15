@@ -9,7 +9,7 @@ const (
 )
 
 type Message struct {
-	ID        string  `json:"id"`
+	ID        string  `json:"id,omitempty"`
 	Role      string  `json:"role"`
 	Blocks    []Block `json:"blocks"`
 	CreatedAt int64   `json:"created_at"`
@@ -53,7 +53,7 @@ func (m *Message) GetVariables() (*TextContent, *VariableContent) {
 }
 
 type Block struct {
-	ID            string         `json:"id"`
+	ID            string         `json:"id,omitempty"`
 	Contents      []Content      `json:"contents"`
 	Usage         *Usage         `json:"usage,omitempty"`
 	IsParallel    bool           `json:"is_parallel,omitempty"`
@@ -64,7 +64,7 @@ type Block struct {
 
 func (b *Block) UnmarshalJSON(data []byte) error {
 	type rawBlock struct {
-		ID            string            `json:"id"`
+		ID            string            `json:"id,omitempty"`
 		Contents      []json.RawMessage `json:"contents"`
 		Usage         *Usage            `json:"usage,omitempty"`
 		IsParallel    bool              `json:"is_parallel,omitempty"`
